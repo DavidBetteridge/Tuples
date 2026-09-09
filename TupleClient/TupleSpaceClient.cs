@@ -1,9 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json;
 using System.Linq.Expressions;
-using Serialize.Linq.Extensions;
-using Serialize.Linq.Nodes;
 using Serialize.Linq.Serializers;
 
 namespace TupleClient;
@@ -126,33 +123,38 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public Task EvalAsync(Expression<Func<TupleSpaceClient, Task>> actionExpression)
+    public void Out(params string[] tuple)
+    {
+        OutAsync(tuple).GetAwaiter().GetResult();
+    }
+
+    public string[] In(params string[] pattern)
+    {
+        return InAsync(pattern).GetAwaiter().GetResult();
+    }
+
+    public string[] Rd(params string[] pattern)
+    {
+        return RdAsync(pattern).GetAwaiter().GetResult();
+    }
+
+    public string[]? Inp(params string[] pattern)
+    {
+        return InpAsync(pattern).GetAwaiter().GetResult();
+    }
+
+    public string[]? Rdp(params string[] pattern)
+    {
+        return RdpAsync(pattern).GetAwaiter().GetResult();
+    }
+
+    public async Task EvalAsync(Expression<Func<TupleSpaceClient, Task>> actionExpression)
     {
         var serializer = new ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
         var serializedExpression = serializer.SerializeText(actionExpression);
         
-        Console.WriteLine($"Serialized Expression: {serializedExpression}");
-
-        var deserializedExpression = serializer.DeserializeText(serializedExpression) as Expression<Func<TupleSpaceClient, Task>>;
-        
-        if (deserializedExpression == null)
-            throw new Exception("Failed to deserialize expression");
-
-        var action = deserializedExpression.Compile();
-        
-        return Task.Run(async () =>
-        {
-            using var client = new TupleSpaceClient(_host, _port, _spaceName);
-            try
-            {
-                await action(client);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in EvalAsync: {ex.Message}");
-                throw;
-            }
-        });
+        using var expressionClient = new TupleSpaceClient(_host, _port, "expressions");
+        await expressionClient.OutAsync("expression", _spaceName, serializedExpression);
     }
 
     public void Dispose()

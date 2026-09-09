@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Addition/Addition.csproj" />
+  <Project Path="ExpressionRunner/ExpressionRunner.csproj" />
   <Project Path="TupleClient/TupleClient.csproj" />
   <Project Path="TupleServer.Tests/TupleServer.Tests.csproj" />
   <Project Path="TupleServer/TupleServer.csproj" />
