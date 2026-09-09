@@ -22,19 +22,18 @@ Console.WriteLine("Adding");
 var tasks = new Task[10];
 for (var i = 0; i < 10; i++)
 {
-    tasks[i] = Task.Run(async () =>
+    tasks[i] = client.EvalAsync(async (c) =>
         {
-            using var client2 = new TupleSpaceClient("127.0.0.1", 8080, spaceName);
             while (true)
             {
-                var token = await client2.InpAsync("work", "work");
+                var token = await c.InpAsync("work", "work");
                 if (token is null) break;
                 
-                var lhs = await client2.InAsync("value", "*");
-                var rhs = await client2.InAsync("value", "*");
+                var lhs = await c.InAsync("value", "*");
+                var rhs = await c.InAsync("value", "*");
                 
                 var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
-                await client2.OutAsync("value", total.ToString());
+                await c.OutAsync("value", total.ToString());
             }
         });
 }

@@ -122,10 +122,21 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public async Task EvalAsync(Action action)
+    public Task EvalAsync(Func<TupleSpaceClient, Task> action)
     {
-        _ = Task.Run(action);
-        await Task.CompletedTask;
+        return Task.Run(async () =>
+        {
+            using var client = new TupleSpaceClient(_host, _port, _spaceName);
+            try
+            {
+                await action(client);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in EvalAsync: {ex.Message}");
+                throw;
+            }
+        });
     }
 
     public void Dispose()
