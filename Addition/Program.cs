@@ -22,20 +22,7 @@ Console.WriteLine("Adding");
 var tasks = new Task[10];
 for (var i = 0; i < 10; i++)
 {
-    tasks[i] = client.EvalAsync(async (c) =>
-        {
-            while (true)
-            {
-                var token = await c.InpAsync("work", "work");
-                if (token is null) break;
-                
-                var lhs = await c.InAsync("value", "*");
-                var rhs = await c.InAsync("value", "*");
-                
-                var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
-                await c.OutAsync("value", total.ToString());
-            }
-        });
+    tasks[i] = client.EvalAsync((c) => AdditionLogic.PerformAddition(c));
 }
 
 await Task.WhenAll(tasks);
@@ -43,3 +30,21 @@ await Task.WhenAll(tasks);
 // The last remaining tuple is the result
 var finalResult = await client.InpAsync("value", "*");
 Console.WriteLine($"Final Result: {finalResult?[1]}");
+
+public static class AdditionLogic
+{
+    public static async Task PerformAddition(TupleSpaceClient c)
+    {
+        while (true)
+        {
+            var token = await c.InpAsync("work", "work");
+            if (token == null) break;
+
+            var lhs = await c.InAsync("value", "*");
+            var rhs = await c.InAsync("value", "*");
+
+            var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
+            await c.OutAsync("value", total.ToString());
+        }
+    }
+}

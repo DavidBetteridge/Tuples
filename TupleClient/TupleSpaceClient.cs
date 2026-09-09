@@ -1,6 +1,10 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Linq.Expressions;
+using Serialize.Linq.Extensions;
+using Serialize.Linq.Nodes;
+using Serialize.Linq.Serializers;
 
 namespace TupleClient;
 
@@ -37,13 +41,13 @@ public class TupleSpaceClient : IDisposable
 
                 // Create/Ensure space exists
                 var createCommand = new { Type = "CREATE", SpaceName = _spaceName, Tuple = (string[]?)null };
-                await _writer.WriteLineAsync(JsonSerializer.Serialize(createCommand));
+                await _writer.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(createCommand));
                 var createLine = await _reader.ReadLineAsync(cancellationToken);
                 if (createLine == null) throw new Exception("Disconnected from server during CREATE");
             }
 
             var command = new { Type = type, SpaceName = _spaceName, Tuple = tuple };
-            await _writer!.WriteLineAsync(JsonSerializer.Serialize(command));
+            await _writer!.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(command));
             
             // Release semaphore as soon as the command is sent if we want to support concurrent commands.
             // But we need to read the specific response for this command.
@@ -54,7 +58,7 @@ public class TupleSpaceClient : IDisposable
             
             var line = await _reader!.ReadLineAsync(cancellationToken);
             if (line == null) throw new Exception("Disconnected from server");
-            return JsonSerializer.Deserialize<Response>(line) ?? throw new Exception("Invalid response");
+            return System.Text.Json.JsonSerializer.Deserialize<Response>(line) ?? throw new Exception("Invalid response");
         }
         finally
         {
@@ -122,8 +126,20 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public Task EvalAsync(Func<TupleSpaceClient, Task> action)
+    public Task EvalAsync(Expression<Func<TupleSpaceClient, Task>> actionExpression)
     {
+        var serializer = new ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
+        var serializedExpression = serializer.SerializeText(actionExpression);
+        
+        Console.WriteLine($"Serialized Expression: {serializedExpression}");
+
+        var deserializedExpression = serializer.DeserializeText(serializedExpression) as Expression<Func<TupleSpaceClient, Task>>;
+        
+        if (deserializedExpression == null)
+            throw new Exception("Failed to deserialize expression");
+
+        var action = deserializedExpression.Compile();
+        
         return Task.Run(async () =>
         {
             using var client = new TupleSpaceClient(_host, _port, _spaceName);

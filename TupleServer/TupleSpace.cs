@@ -5,7 +5,7 @@ namespace TupleServer;
 public class TupleSpace
 {
     private readonly List<string[]> _tuples = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly List<Waiter> _waitingGetters = new();
 
     private record Waiter(string[]? Pattern, TaskCompletionSource<string[]> Tcs, bool Remove);
