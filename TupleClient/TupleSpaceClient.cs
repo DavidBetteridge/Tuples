@@ -63,7 +63,7 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<string[]> OutAsync(params string[] tuple)
     {
-        var response = await SendCommandAsync("ADD", tuple);
+        var response = await SendCommandAsync("OUT", tuple);
         if (response.Status != "OK") throw new Exception(response.Message);
         return tuple;
     }
@@ -78,7 +78,7 @@ public class TupleSpaceClient : IDisposable
         using var cts = new CancellationTokenSource(timeout);
         try
         {
-            var response = await SendCommandAsync("GET", pattern, cts.Token);
+            var response = await SendCommandAsync("IN", pattern, cts.Token);
             if (response.Status != "OK") throw new Exception(response.Message);
             return response.Tuple ?? throw new Exception("No tuple returned");
         }

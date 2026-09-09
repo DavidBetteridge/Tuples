@@ -82,7 +82,7 @@ public class TcpServer
                 response = new { Status = "OK" };
                 break;
 
-            case "ADD":
+            case "OUT":
                 if (command.Tuple != null)
                 {
                     space.Add(command.Tuple);
@@ -90,7 +90,7 @@ public class TcpServer
                 }
                 break;
 
-            case "GET":
+            case "IN":
                 var tuple = await space.GetAsync(command.Tuple, true, cancellationToken);
                 response = new { Status = "OK", Tuple = tuple };
                 break;

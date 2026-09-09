@@ -1,60 +1,81 @@
-# Tuple Space Server
+# Linda Tuple Space for .NET
 
-A simple console-based Tuple Space server using TCP and JSON.
+A distributed coordination system based on the Linda coordination language, featuring remote execution via Roslyn scripting and C# Source Generators.
 
-## Features
-- Create new tuple spaces.
-- Add tuples to a space.
-- Get (and remove) tuples from a space.
-- Check if a tuple space is empty.
-- Blocking `GET` requests: If a client requests a tuple from an empty space, the connection stays open and the client is notified as soon as a tuple is added.
+## Architecture
 
-## Protocol
-The server communicates over TCP (default port 8080) using newline-delimited JSON messages.
+The system consists of four main components:
 
-### Commands
-All commands should be a single JSON object per line.
+1.  **TupleServer**: A TCP-based server that manages multiple named "tuple spaces". It supports atomic coordination primitives like `IN` (consume), `OUT` (produce), and `RD` (read).
+2.  **TupleClient**: A library providing the `TupleSpaceClient` for interacting with the server.
+3.  **ExpressionRunner**: A distributed worker that polls an `expressions` tuple space for C# code strings to execute against specific tuple spaces.
+4.  **TupleClient.Generators**: A C# Source Generator that allows developers to write type-safe code for remote execution.
 
-#### CREATE
-Creates a new tuple space or gets the existing one.
-```json
-{"Type": "CREATE", "SpaceName": "mySpace"}
+## Core Operations (Linda Primitives)
+
+The `TupleSpaceClient` provides the following operations:
+
+| Operation | Description |
+| :--- | :--- |
+| `OutAsync(tuple)` | **Produce**: Adds a tuple to the space. |
+| `InAsync(pattern)` | **Consume**: Blocks until a tuple matching the pattern is available, then removes and returns it. |
+| `RdAsync(pattern)` | **Read**: Blocks until a tuple matching the pattern is available, then returns it without removing it. |
+| `InpAsync(pattern)` | **Probe Consume**: Non-blocking version of `IN`. Returns null if no match is found immediately. |
+| `RdpAsync(pattern)` | **Probe Read**: Non-blocking version of `RD`. Returns null if no match is found immediately. |
+
+*Patterns support wildcards using the `"*"` string.*
+
+## Remote Execution (`EvalAsync`)
+
+The system supports a powerful `EvalAsync` mechanism that allows code to be shipped to a remote `ExpressionRunner` for execution close to the data.
+
+### 1. Define Remote Logic
+Mark a static method with the `[RemoteEval]` attribute. The method must take a `TupleSpaceClient` as its first argument (usually named `c`).
+
+```csharp
+public static class MyLogic
+{
+    [RemoteEval]
+    public static async Task PerformWork(TupleSpaceClient c)
+    {
+        var data = await c.InAsync("data", "*");
+        // ... process data ...
+        await c.OutAsync("result", "processed");
+    }
+}
 ```
 
-#### ADD
-Adds a tuple (array of strings) to a space.
-```json
-{"Type": "ADD", "SpaceName": "mySpace", "Tuple": ["key1", "value1", "extra"]}
+### 2. Invoke Remotely
+The Source Generator automatically extracts the method body as a string and puts it in a `RemoteCode` class. Use `EvalAsync` to send this code to the runner:
+
+```csharp
+await client.EvalAsync(RemoteCode.PerformWork);
 ```
 
-#### GET
-Gets and removes a tuple from a space. Blocks if the space is empty.
-```json
-{"Type": "GET", "SpaceName": "mySpace"}
-```
+## Getting Started
 
-#### ISEMPTY
-Checks if a space is empty.
-```json
-{"Type": "ISEMPTY", "SpaceName": "mySpace"}
-```
-
-### Responses
-The server responds with a single JSON object per line.
-
-```json
-{"Status": "OK"}
-{"Status": "OK", "Tuple": ["key1", "value1"]}
-{"Status": "OK", "IsEmpty": true}
-{"Status": "Error", "Message": "Unknown command"}
-```
-
-## Running the Server
+### 1. Start the Server
 ```bash
-dotnet run --project TupleServer
+dotnet run --project TupleServer/TupleServer.csproj
 ```
 
-## Running Tests
+### 2. Start the Expression Runner
+You can start multiple runners to handle parallel workloads.
 ```bash
-dotnet test
+dotnet run --project ExpressionRunner/Program.cs
 ```
+
+### 3. Run the Addition Example
+The `Addition` project demonstrates summing numbers 1 to 1000 by distributing addition tasks across the runners.
+```bash
+dotnet run --project Addition/Program.cs
+```
+
+## Project Structure
+
+- `TupleServer/`: The core TCP server.
+- `TupleClient/`: The shared library and `TupleSpaceClient`.
+- `TupleClient.Generators/`: The Roslyn Source Generator.
+- `ExpressionRunner/`: The worker process using `Microsoft.CodeAnalysis.CSharp.Scripting`.
+- `Addition/`: An example application utilizing all components.
+- `TupleServer.Tests/`: Integration tests for the core protocol.
