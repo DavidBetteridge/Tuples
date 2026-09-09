@@ -1,7 +1,5 @@
 using System.Net.Sockets;
 using System.Text;
-using System.Linq.Expressions;
-using Serialize.Linq.Serializers;
 
 namespace TupleClient;
 
@@ -63,10 +61,11 @@ public class TupleSpaceClient : IDisposable
         }
     }
 
-    public async Task OutAsync(params string[] tuple)
+    public async Task<string[]> OutAsync(params string[] tuple)
     {
         var response = await SendCommandAsync("ADD", tuple);
         if (response.Status != "OK") throw new Exception(response.Message);
+        return tuple;
     }
 
     public async Task<string[]> InAsync(params string[] pattern)
@@ -123,9 +122,9 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public void Out(params string[] tuple)
+    public string[] Out(params string[] tuple)
     {
-        OutAsync(tuple).GetAwaiter().GetResult();
+        return OutAsync(tuple).GetAwaiter().GetResult();
     }
 
     public string[] In(params string[] pattern)
@@ -148,13 +147,10 @@ public class TupleSpaceClient : IDisposable
         return RdpAsync(pattern).GetAwaiter().GetResult();
     }
 
-    public async Task EvalAsync(Expression<Func<TupleSpaceClient, Task>> actionExpression)
+    public async Task EvalAsync(string code)
     {
-        var serializer = new ExpressionSerializer(new Serialize.Linq.Serializers.JsonSerializer());
-        var serializedExpression = serializer.SerializeText(actionExpression);
-        
         using var expressionClient = new TupleSpaceClient(_host, _port, "expressions");
-        await expressionClient.OutAsync("expression", _spaceName, serializedExpression);
+        await expressionClient.OutAsync("expression", _spaceName, code);
     }
 
     public void Dispose()

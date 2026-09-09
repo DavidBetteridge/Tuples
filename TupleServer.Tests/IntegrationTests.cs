@@ -81,7 +81,10 @@ public class IntegrationTests
         await Task.Delay(100);
         Assert.That(inTask.IsCompleted, Is.False);
 
-        await client.EvalAsync(async () =>
+        // Note: EvalAsync now takes a string of C# code that will be executed by ExpressionRunner.
+        // For this test, we'll just use a simple Task.Run to simulate the behavior since
+        // we don't have ExpressionRunner running in the test environment.
+        _ = Task.Run(async () =>
         {
             await Task.Delay(200);
             using var client2 = new TupleSpaceClient("127.0.0.1", Port, "test-blocking");

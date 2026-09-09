@@ -19,32 +19,32 @@ for (var i = 0; i < numCount - 1; i++)
 
 Console.WriteLine("Adding");
 
-var tasks = new Task[10];
-for (var i = 0; i < 10; i++)
+// 3. Submit work to the expression runner
+// The code string has access to 'c' which is a TupleSpaceClient connected to our space
+var additionCode = @"
+    while (true)
+    {
+        var token = await c.InpAsync(""work"", ""work"");
+        if (token is null) break;
+
+        var lhs = await c.InAsync(""value"", ""*"");
+        var rhs = await c.InAsync(""value"", ""*"");
+        var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
+        await c.OutAsync(""value"", total.ToString());
+    }
+";
+
+var tasks = new Task[3 - 1];
+for (var i = 0; i < 3 - 1; i++)
 {
-    tasks[i] = client.EvalAsync((c) => AdditionLogic.PerformAddition(c));
+    tasks[i] = client.EvalAsync(additionCode);
 }
 
 await Task.WhenAll(tasks);
 
-// The last remaining tuple is the result
+// 4. Wait for the result
+Console.WriteLine("Waiting for result...");
+await Task.Delay(5000); // Give time for all additions to complete
+
 var finalResult = await client.InpAsync("value", "*");
 Console.WriteLine($"Final Result: {finalResult?[1]}");
-
-public static class AdditionLogic
-{
-    public static async Task PerformAddition(TupleSpaceClient c)
-    {
-        while (true)
-        {
-            var token = await c.InpAsync("work", "work");
-            if (token == null) break;
-
-            var lhs = await c.InAsync("value", "*");
-            var rhs = await c.InAsync("value", "*");
-
-            var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
-            await c.OutAsync("value", total.ToString());
-        }
-    }
-}
