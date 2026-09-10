@@ -128,4 +128,26 @@ public class IntegrationTests
         using var client = new TupleSpaceClient("127.0.0.1", Port, "test-timeout");
         Assert.ThrowsAsync<TimeoutException>(async () => await client.InAsync(TimeSpan.FromMilliseconds(100), "non-existent"));
     }
+
+    [Test]
+    public async Task TestClientLibrary_BulkOutScope()
+    {
+        using var client = new TupleSpaceClient("127.0.0.1", Port, "test-bulk-out");
+
+        using (var scope = new BulkOutScope(client))
+        {
+            await client.OutAsync("work", "1");
+            await client.OutAsync("work", "2");
+            
+            // Other commands should fail
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await client.InpAsync("work", "1"));
+        }
+
+        // Now they should be there
+        var res1 = await client.InAsync("work", "1");
+        var res2 = await client.InAsync("work", "2");
+        
+        Assert.That(res1, Is.EqualTo(new[] { "work", "1" }));
+        Assert.That(res2, Is.EqualTo(new[] { "work", "2" }));
+    }
 }

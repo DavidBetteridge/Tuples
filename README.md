@@ -22,8 +22,22 @@ The `TupleSpaceClient` provides the following operations:
 | `RdAsync(pattern)` | **Read**: Blocks until a tuple matching the pattern is available, then returns it without removing it. |
 | `InpAsync(pattern)` | **Probe Consume**: Non-blocking version of `IN`. Returns null if no match is found immediately. |
 | `RdpAsync(pattern)` | **Probe Read**: Non-blocking version of `RD`. Returns null if no match is found immediately. |
+| `BulkOutScope(client)` | **Bulk Produce**: Buffers `OUT` operations and sends them as a single atomic command when disposed. |
 
 *Patterns support wildcards using the `"*"` string.*
+
+## Bulk Operations
+
+To improve performance when adding many tuples, use the `BulkOutScope`:
+
+```csharp
+using (var scope = new BulkOutScope(client))
+{
+    await client.OutAsync("key", "value1");
+    await client.OutAsync("key", "value2");
+    // Only OUT operations are allowed in this scope
+}
+```
 
 ## Remote Execution (`EvalAsync`)
 

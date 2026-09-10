@@ -134,6 +134,14 @@ public class TupleSpace
             return _tuples.Count == 0;
         }
     }
+
+    public void AddBulk(List<string[]> tuples)
+    {
+        foreach (var tuple in tuples)
+        {
+            Add(tuple);
+        }
+    }
 }
 
 public class TupleSpaceManager

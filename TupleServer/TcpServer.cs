@@ -90,6 +90,14 @@ public class TcpServer
                 }
                 break;
 
+            case "OUTBULK":
+                if (command.Tuples != null)
+                {
+                    space.AddBulk(command.Tuples);
+                    response = new { Status = "OK" };
+                }
+                break;
+
             case "IN":
                 var tuple = await space.GetAsync(command.Tuple, true, cancellationToken);
                 response = new { Status = "OK", Tuple = tuple };
@@ -145,5 +153,6 @@ public class TcpServer
         public string Type { get; set; } = "";
         public string SpaceName { get; set; } = "";
         public string[]? Tuple { get; set; }
+        public List<string[]>? Tuples { get; set; }
     }
 }
