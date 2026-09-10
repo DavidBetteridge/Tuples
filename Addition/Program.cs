@@ -30,6 +30,13 @@ Console.WriteLine("Waiting for result...");
 var finalResult = await client.InAsync<ValueTuple>(Wildcard.Any, numCount);
 Console.WriteLine($"Final Result: {finalResult.Value}");
 
+while (true)
+{
+    var stat = await client.InpAsync<StatsTuple>(Wildcard.Any, Wildcard.Any);
+    if (stat is null) break;
+    Console.WriteLine($"Client {stat.Value.ProcessName} processed {stat.Value.Counter}");
+}
+
 async Task SetupData(TupleSpaceClient tupleSpaceClient, int size)
 {
     using var _ = new BulkOutScope(tupleSpaceClient);
@@ -45,21 +52,29 @@ async Task SetupData(TupleSpaceClient tupleSpaceClient, int size)
 }
 
 [TupleDefinition]
-public struct ValueTuple
+public readonly struct ValueTuple
 {
-    public int Value { get; set; }
-    public int Count { get; set; }
+    public required int Value { get; init; }
+    public required int Count { get; init; }
 }
 
 [TupleDefinition]
-public struct WorkTuple;
+public readonly struct WorkTuple;
 
+
+[TupleDefinition]
+public readonly struct StatsTuple
+{
+    public required int Counter { get; init; }
+    public required string ProcessName { get; init; }
+}
 
 public static class AdditionLogic
 {
     [RemoteEval]
-    public static async Task PerformAddition(TupleSpaceClient c)
+    public static async Task PerformAddition(TupleSpaceClient c, string processName)
     {
+        var counter = 0;
         while (true)
         {
             var token = await c.InpAsync<WorkTuple>();
@@ -72,6 +87,9 @@ public static class AdditionLogic
             var count = lhs.Count + rhs.Count;
             
             await c.OutAsync(new ValueTuple { Value = total, Count = count });
+
+            counter++;
         }
+        await c.OutAsync(new StatsTuple { Counter = counter, ProcessName = processName });
     }
 }

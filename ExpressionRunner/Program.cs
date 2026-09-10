@@ -2,7 +2,15 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using TupleClient;
 
-Console.WriteLine("Expression Runner started...");
+if (args.Length == 0)
+{
+    Console.WriteLine("Please supply the name of the client");
+    return;
+}
+
+var processName = args[0];
+
+Console.WriteLine($"Expression Runner {processName} started...");
 
 using var expressionClient = new TupleSpaceClient("127.0.0.1", 8080, "expressions");
 
@@ -52,7 +60,7 @@ while (true)
                     return;
                 }
                 
-                var globals = new ScriptGlobals { c = client };
+                var globals = new ScriptGlobals { c = client, processName = processName};
                 var result = await script.RunAsync(globals);
                 
                 // If the script returns a Task, await it
@@ -79,4 +87,5 @@ while (true)
 public class ScriptGlobals
 {
     public TupleSpaceClient c { get; set; } = null!;
+    public required string processName { get; set; }
 }
