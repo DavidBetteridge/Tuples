@@ -68,6 +68,7 @@ public class TupleSpace
     public async Task<string[]> GetAsync(string[]? pattern, bool remove, CancellationToken cancellationToken = default)
     {
         TaskCompletionSource<string[]> tcs;
+        Waiter waiter;
         lock (_lock)
         {
             for (var i = 0; i < _tuples.Count; i++)
@@ -84,10 +85,18 @@ public class TupleSpace
             }
 
             tcs = new TaskCompletionSource<string[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _waitingGetters.Add(new Waiter(pattern, tcs, remove));
+            waiter = new Waiter(pattern, tcs, remove);
+            _waitingGetters.Add(waiter);
         }
 
-        using var _ = cancellationToken.Register(() => tcs.TrySetCanceled());
+        using var _ = cancellationToken.Register(() =>
+        {
+            lock (_lock)
+            {
+                _waitingGetters.Remove(waiter);
+            }
+            tcs.TrySetCanceled();
+        });
         return await tcs.Task;
     }
 
