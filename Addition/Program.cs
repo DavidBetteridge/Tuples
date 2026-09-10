@@ -1,13 +1,13 @@
 ﻿using TupleClient;
 
-const int numCount = 1000;
+const int numCount = 1001;
 var spaceName = "addition" + Guid.NewGuid();
 using var client = new TupleSpaceClient("127.0.0.1", 8080, spaceName);
 
 // 1. Put numbers into the space
 for (var i = 1; i <= numCount; i++)
 {
-    await client.OutAsync("value", i.ToString());    
+    await client.OutAsync("value", i.ToString(), "1");    
 }
 
 // 2. Put work tokens into the space. 
@@ -16,6 +16,7 @@ for (var i = 0; i < numCount - 1; i++)
 {
     await client.OutAsync("work", "work");
 }
+await client.OutAsync("size", numCount.ToString());
 
 Console.WriteLine("Adding");
 
@@ -29,11 +30,11 @@ for (var i = 0; i < taskCount - 1; i++)
 }
 await Task.WhenAll(tasks);
 
-// 4. Wait for the result (this is a rubbish solution!)
+// // 4. Wait for the result (this is a rubbish solution!)
 Console.WriteLine("Waiting for result...");
-await Task.Delay(5000); // Give time for all additions to complete
+// await Task.Delay(5000); // Give time for all additions to complete
 
-var finalResult = await client.InpAsync("value", "*");
+var finalResult = await client.InAsync("total", "*");
 Console.WriteLine($"Final Result: {finalResult?[1]}");
 
 public static class AdditionLogic
@@ -41,14 +42,21 @@ public static class AdditionLogic
     [RemoteEval]
     public static async Task PerformAddition(TupleSpaceClient c)
     {
+        var target = await c.RdAsync("size", "*");
+        var finalCount = int.Parse(target[1]);
+        
         while (true)
         {
             var token = await c.InpAsync("work", "work");
             if (token is null) break;
-            var lhs = await c.InAsync("value", "*");
-            var rhs = await c.InAsync("value", "*");
+            var lhs = await c.InAsync("value", "*", "*");
+            var rhs = await c.InAsync("value", "*", "*");
             var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
-            await c.OutAsync("value", total.ToString());
+            var count = int.Parse(lhs[2]) + int.Parse(rhs[2]);
+            if (count == finalCount)
+                await c.OutAsync("total", total.ToString());
+            else
+                await c.OutAsync("value", total.ToString(), count.ToString());
         }
     }
 }
