@@ -21,14 +21,14 @@ Console.WriteLine("Adding");
 var taskCount = 10;
 var tasks = new Task[taskCount - 1];
 for (var i = 0; i < taskCount - 1; i++)
-    tasks[i] = client.EvalAsync(RemoteCode.PerformAddition);
+    tasks[i] = client.EvalAsync(RemoteCode.PerformAddition, RemoteCode.TupleDefinitions);
 await Task.WhenAll(tasks);
 
 
 // When the final addition has completed,  the result is written to the tuple (total, *)
 Console.WriteLine("Waiting for result...");
-var finalResult = await client.InAsync("total", "*");
-Console.WriteLine($"Final Result: {finalResult?[1]}");
+var finalResult = await client.InAsync<TotalTuple>("total", "*");
+Console.WriteLine($"Final Result: {finalResult.Total}");
 
 async Task SetupData(TupleSpaceClient tupleSpaceClient, int size)
 {
@@ -36,13 +36,42 @@ async Task SetupData(TupleSpaceClient tupleSpaceClient, int size)
 
     // The numbers to add
     for (var i = 1; i <= size; i++)
-        await tupleSpaceClient.OutAsync("value", i.ToString(), "1");
+        await tupleSpaceClient.OutAsync(new ValueTuple { Label = "value", Value = i, Count = 1 });
 
     // Each pair of numbers needs a work token
     for (var i = 0; i < size - 1; i++)
-        await tupleSpaceClient.OutAsync("work", "work");
+        await tupleSpaceClient.OutAsync(new WorkTuple { Label = "work", Content = "work" });
 
-    await tupleSpaceClient.OutAsync("size", size.ToString());
+    await tupleSpaceClient.OutAsync(new SizeTuple { Label = "size", Size = size });
+}
+
+[TupleDefinition]
+public struct ValueTuple
+{
+    public string Label { get; set; }
+    public int Value { get; set; }
+    public int Count { get; set; }
+}
+
+[TupleDefinition]
+public struct WorkTuple
+{
+    public string Label { get; set; }
+    public string Content { get; set; }
+}
+
+[TupleDefinition]
+public struct SizeTuple
+{
+    public string Label { get; set; }
+    public int Size { get; set; }
+}
+
+[TupleDefinition]
+public struct TotalTuple
+{
+    public string Label { get; set; }
+    public int Total { get; set; }
 }
 
 public static class AdditionLogic
@@ -50,21 +79,24 @@ public static class AdditionLogic
     [RemoteEval]
     public static async Task PerformAddition(TupleSpaceClient c)
     {
-        var target = await c.RdAsync("size", "*");
-        var finalCount = int.Parse(target[1]);
+        var target = await c.RdAsync<SizeTuple>("size", "*");
+        var finalCount = target.Size;
 
         while (true)
         {
-            var token = await c.InpAsync("work", "work");
+            var token = await c.InpAsync<WorkTuple>("work", "work");
             if (token is null) break;
-            var lhs = await c.InAsync("value", "*", "*");
-            var rhs = await c.InAsync("value", "*", "*");
-            var total = int.Parse(lhs[1]) + int.Parse(rhs[1]);
-            var count = int.Parse(lhs[2]) + int.Parse(rhs[2]);
+            
+            var lhs = await c.InAsync<ValueTuple>("value", "*", "*");
+            var rhs = await c.InAsync<ValueTuple>("value", "*", "*");
+            
+            var total = lhs.Value + rhs.Value;
+            var count = lhs.Count + rhs.Count;
+            
             if (count == finalCount)
-                await c.OutAsync("total", total.ToString());
+                await c.OutAsync(new TotalTuple { Label = "total", Total = total });
             else
-                await c.OutAsync("value", total.ToString(), count.ToString());
+                await c.OutAsync(new ValueTuple { Label = "value", Value = total, Count = count });
         }
     }
 }

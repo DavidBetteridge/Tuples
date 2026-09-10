@@ -15,10 +15,11 @@ while (true)
 {
     try
     {
-        // Tuple format: ["expression", spaceName, code]
-        var tuple = await expressionClient.InAsync("expression", "*", "*");
+        // Tuple format: ["expression", spaceName, code, tupleDefinitions]
+        var tuple = await expressionClient.InAsync("expression", "*", "*", "*");
         var spaceName = tuple[1];
         var code = tuple[2];
+        var tupleDefinitions = tuple[3];
 
         Console.WriteLine($"Received code for space: {spaceName}");
 
@@ -29,9 +30,14 @@ while (true)
             {
                 Console.WriteLine($"Starting execution for space: {spaceName}");
                 
+                // Prepend tuple definitions to the code if provided
+                var fullCode = string.IsNullOrEmpty(tupleDefinitions) 
+                    ? code 
+                    : tupleDefinitions + "\n\n" + code;
+                
                 // Create a script that has access to the client via a global variable 'c'
                 var script = CSharpScript.Create<Task>(
-                    code,
+                    fullCode,
                     scriptOptions,
                     globalsType: typeof(ScriptGlobals));
                 

@@ -112,9 +112,26 @@ public class TupleSpaceClient : IDisposable
         return tuple;
     }
 
+    public async Task<string[]> OutAsync<T>(T tuple) where T : struct
+    {
+        var properties = typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        var values = new string[properties.Length];
+        for (int i = 0; i < properties.Length; i++)
+        {
+            values[i] = properties[i].GetValue(tuple)?.ToString() ?? "";
+        }
+        return await OutAsync(values);
+    }
+
     public async Task<string[]> InAsync(params string[] pattern)
     {
         return await InAsync(Timeout.InfiniteTimeSpan, pattern);
+    }
+
+    public async Task<T> InAsync<T>(params string[] pattern) where T : struct
+    {
+        var result = await InAsync(pattern);
+        return MapToStruct<T>(result);
     }
 
     public async Task<string[]> InAsync(TimeSpan timeout, params string[] pattern)
@@ -132,9 +149,21 @@ public class TupleSpaceClient : IDisposable
         }
     }
 
+    public async Task<T> InAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
+    {
+        var result = await InAsync(timeout, pattern);
+        return MapToStruct<T>(result);
+    }
+
     public async Task<string[]> RdAsync(params string[] pattern)
     {
         return await RdAsync(Timeout.InfiniteTimeSpan, pattern);
+    }
+
+    public async Task<T> RdAsync<T>(params string[] pattern) where T : struct
+    {
+        var result = await RdAsync(pattern);
+        return MapToStruct<T>(result);
     }
 
     public async Task<string[]> RdAsync(TimeSpan timeout, params string[] pattern)
@@ -152,6 +181,12 @@ public class TupleSpaceClient : IDisposable
         }
     }
 
+    public async Task<T> RdAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
+    {
+        var result = await RdAsync(timeout, pattern);
+        return MapToStruct<T>(result);
+    }
+
     public async Task<string[]?> InpAsync(params string[] pattern)
     {
         var response = await SendCommandAsync("INP", pattern);
@@ -159,11 +194,39 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
+    public async Task<T?> InpAsync<T>(params string[] pattern) where T : struct
+    {
+        var result = await InpAsync(pattern);
+        return result == null ? null : MapToStruct<T>(result);
+    }
+
     public async Task<string[]?> RdpAsync(params string[] pattern)
     {
         var response = await SendCommandAsync("RDP", pattern);
         if (response.Status == "OK") return response.Tuple;
         return null;
+    }
+
+    public async Task<T?> RdpAsync<T>(params string[] pattern) where T : struct
+    {
+        var result = await RdpAsync(pattern);
+        return result == null ? null : MapToStruct<T>(result);
+    }
+
+    private T MapToStruct<T>(string[] values) where T : struct
+    {
+        var properties = typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (values.Length != properties.Length)
+            throw new Exception($"Tuple length {values.Length} does not match struct {typeof(T).Name} property count {properties.Length}");
+
+        object obj = default(T);
+        for (int i = 0; i < properties.Length; i++)
+        {
+            var propertyType = properties[i].PropertyType;
+            var val = Convert.ChangeType(values[i], propertyType);
+            properties[i].SetValue(obj, val);
+        }
+        return (T)obj;
     }
 
     public string[] Out(params string[] tuple)
@@ -193,8 +256,13 @@ public class TupleSpaceClient : IDisposable
 
     public async Task EvalAsync(string code)
     {
+        await EvalAsync(code, "");
+    }
+
+    public async Task EvalAsync(string code, string tupleDefinitions)
+    {
         using var expressionClient = new TupleSpaceClient(_host, _port, "expressions");
-        await expressionClient.OutAsync("expression", _spaceName, code);
+        await expressionClient.OutAsync("expression", _spaceName, code, tupleDefinitions);
     }
 
     public void Dispose()
