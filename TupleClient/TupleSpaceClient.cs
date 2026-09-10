@@ -13,6 +13,7 @@ public class TupleSpaceClient : IDisposable
     private StreamReader? _reader;
     private StreamWriter? _writer;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly Lock _scopeLock = new();
     private BulkOutScope? _currentBulkScope;
 
     public TupleSpaceClient(string host, int port, string spaceName)
@@ -24,15 +25,20 @@ public class TupleSpaceClient : IDisposable
 
     internal void EnterBulkOutScope(BulkOutScope scope)
     {
-        if (_currentBulkScope != null) throw new InvalidOperationException("Already in a bulk out scope");
-        _currentBulkScope = scope;
+        lock (_scopeLock)
+        {
+            if (_currentBulkScope != null)
+                throw new InvalidOperationException("Already in a bulk out scope");
+            _currentBulkScope = scope;
+        }
     }
 
     internal void ExitBulkOutScope(BulkOutScope scope)
     {
-        if (_currentBulkScope == scope)
+        lock (_scopeLock)
         {
-            _currentBulkScope = null;
+            if (_currentBulkScope == scope)
+                _currentBulkScope = null;
         }
     }
 

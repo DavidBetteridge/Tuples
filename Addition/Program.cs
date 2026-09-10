@@ -1,6 +1,6 @@
 ﻿using TupleClient;
 
-const int numCount = 1000;
+const int numCount = 10;
 var spaceName = "addition" + Guid.NewGuid();
 using var client = new TupleSpaceClient("127.0.0.1", 8080, spaceName);
 

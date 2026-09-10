@@ -18,7 +18,7 @@ public class TcpServer
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        TcpListener listener = new TcpListener(IPAddress.Any, _port);
+        var listener = new TcpListener(IPAddress.Any, _port);
         listener.Start();
         Console.WriteLine($"Server started on port {_port}");
 
@@ -26,7 +26,7 @@ public class TcpServer
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                TcpClient client = await listener.AcceptTcpClientAsync(cancellationToken);
+                var client = await listener.AcceptTcpClientAsync(cancellationToken);
                 _ = HandleClientAsync(client, cancellationToken);
             }
         }
@@ -38,41 +38,39 @@ public class TcpServer
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
-        using (client)
-        using (NetworkStream stream = client.GetStream())
-        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
-        using (StreamWriter writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true })
+        using var _ = client;
+        using var stream = client.GetStream();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+        
+        var writerLock = new SemaphoreSlim(1, 1);
+        try
         {
-            var writerLock = new SemaphoreSlim(1, 1);
-            try
+            var tasks = new List<Task>();
+            while (!cancellationToken.IsCancellationRequested && client.Connected)
             {
-                var tasks = new List<Task>();
-                while (!cancellationToken.IsCancellationRequested && client.Connected)
-                {
-                    string? line = await reader.ReadLineAsync(cancellationToken);
-                    if (line == null) break;
+                var line = await reader.ReadLineAsync(cancellationToken);
+                if (line == null) break;
 
-                    var command = JsonSerializer.Deserialize<Command>(line);
-                    if (command == null) continue;
+                var command = JsonSerializer.Deserialize<Command>(line);
+                if (command == null) continue;
 
-                    var task = ProcessCommandAsync(command, writer, writerLock, cancellationToken);
-                    tasks.Add(task);
-                    
-                    // Clean up completed tasks
-                    tasks.RemoveAll(t => t.IsCompleted);
-                }
-                await Task.WhenAll(tasks);
+                var task = ProcessCommandAsync(command, writer, writerLock, cancellationToken);
+                tasks.Add(task);
+                
+                // Clean up completed tasks
+                tasks.RemoveAll(t => t.IsCompleted);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error handling client: {ex.Message}");
-            }
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error handling client: {ex.Message}");
         }
     }
 
     private async Task ProcessCommandAsync(Command command, StreamWriter writer, SemaphoreSlim writerLock, CancellationToken cancellationToken)
     {
-        Console.WriteLine("Process command " + command);
         var space = _manager.GetOrCreateSpace(command.SpaceName);
         object? response = null;
 
@@ -125,7 +123,7 @@ public class TcpServer
                 break;
 
             case "ISEMPTY":
-                bool isEmpty = space.IsEmpty();
+                var isEmpty = space.IsEmpty();
                 response = new { Status = "OK", IsEmpty = isEmpty };
                 break;
 

@@ -16,7 +16,7 @@ public class TupleSpace
         lock (_lock)
         {
             var alreadyMatchedGet = false;
-            for (int i = 0; i < _waitingGetters.Count; )
+            for (var i = 0; i < _waitingGetters.Count; )
             {
                 var waiter = _waitingGetters[i];
                 if (Matches(tuple, waiter.Pattern))
@@ -70,7 +70,7 @@ public class TupleSpace
         TaskCompletionSource<string[]> tcs;
         lock (_lock)
         {
-            for (int i = 0; i < _tuples.Count; i++)
+            for (var i = 0; i < _tuples.Count; i++)
             {
                 if (Matches(_tuples[i], pattern))
                 {
@@ -87,17 +87,15 @@ public class TupleSpace
             _waitingGetters.Add(new Waiter(pattern, tcs, remove));
         }
 
-        using (cancellationToken.Register(() => tcs.TrySetCanceled()))
-        {
-            return await tcs.Task;
-        }
+        using var _ = cancellationToken.Register(() => tcs.TrySetCanceled());
+        return await tcs.Task;
     }
 
     public string[]? TryGet(string[]? pattern, bool remove)
     {
         lock (_lock)
         {
-            for (int i = 0; i < _tuples.Count; i++)
+            for (var i = 0; i < _tuples.Count; i++)
             {
                 if (Matches(_tuples[i], pattern))
                 {
@@ -117,7 +115,7 @@ public class TupleSpace
     {
         if (pattern == null) return true;
         if (tuple.Length != pattern.Length) return false;
-        for (int i = 0; i < tuple.Length; i++)
+        for (var i = 0; i < tuple.Length; i++)
         {
             if (pattern[i] != "*" && tuple[i] != pattern[i])
             {

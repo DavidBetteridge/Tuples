@@ -3,7 +3,8 @@ namespace TupleClient;
 public class BulkOutScope : IDisposable
 {
     private readonly TupleSpaceClient _client;
-    private readonly List<string[]> _tuples = new();
+    private readonly List<string[]> _tuples = [];
+    private readonly Lock _lock = new();
     private bool _disposed;
 
     public BulkOutScope(TupleSpaceClient client)
@@ -14,19 +15,33 @@ public class BulkOutScope : IDisposable
 
     public void AddTuple(string[] tuple)
     {
-        _tuples.Add(tuple);
+        lock (_lock)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(BulkOutScope));
+            _tuples.Add(tuple);
+        }
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        List<string[]>? tuplesToSend = null;
+        
+        lock (_lock)
         {
-            _client.ExitBulkOutScope(this);
-            if (_tuples.Count > 0)
-            {
-                _client.SendBulkOutAsync(_tuples).GetAwaiter().GetResult();
-            }
+            if (_disposed)
+                return;
             _disposed = true;
+            
+            if (_tuples.Count > 0)
+                tuplesToSend = [.. _tuples];
         }
+        
+        // Send bulk data while still in scope, then exit
+        // This ensures no other operations can slip in before data is sent
+        if (tuplesToSend != null)
+            _client.SendBulkOutAsync(tuplesToSend).GetAwaiter().GetResult();
+        
+        _client.ExitBulkOutScope(this);
     }
 }
