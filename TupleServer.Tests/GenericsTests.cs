@@ -50,8 +50,8 @@ public class GenericsTests
         
         await client.OutAsync<MyTuple>(myTuple);
 
-        var result = await client.InAsync("test", "123", "meta");
-        Assert.That(result, Is.EqualTo(new[] { "test", "123", "meta" }));
+        var result = await client.InAsync("MyTuple", "test", "123", "meta");
+        Assert.That(result, Is.EqualTo(new[] { "MyTuple", "test", "123", "meta" }));
     }
 
     [Test]
@@ -65,11 +65,11 @@ public class GenericsTests
             await client.OutAsync(new AnotherTuple { A = 3, B = 4 });
         }
 
-        var res1 = await client.InAsync("1", "2");
-        var res2 = await client.InAsync("3", "4");
+        var res1 = await client.InAsync("AnotherTuple", "1", "2");
+        var res2 = await client.InAsync("AnotherTuple", "3", "4");
 
-        Assert.That(res1, Is.EqualTo(new[] { "1", "2" }));
-        Assert.That(res2, Is.EqualTo(new[] { "3", "4" }));
+        Assert.That(res1, Is.EqualTo(new[] { "AnotherTuple", "1", "2" }));
+        Assert.That(res2, Is.EqualTo(new[] { "AnotherTuple", "3", "4" }));
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class GenericsTests
     {
         using var client = new TupleSpaceClient("127.0.0.1", Port, "test-in-generic");
 
-        await client.OutAsync("test", "456", "extra");
+        await client.OutAsync("MyTuple", "test", "456", "extra");
 
         var result = await client.InAsync<MyTuple>("test", "456", "*");
         Assert.That(result.Key, Is.EqualTo("test"));

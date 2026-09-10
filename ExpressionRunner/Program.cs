@@ -56,7 +56,7 @@ while (true)
                 var result = await script.RunAsync(globals);
                 
                 // If the script returns a Task, await it
-                if (result.ReturnValue is Task task)
+                if (result.ReturnValue is { } task)
                 {
                     await task;
                 }

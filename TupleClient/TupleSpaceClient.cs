@@ -115,10 +115,11 @@ public class TupleSpaceClient : IDisposable
     public async Task<string[]> OutAsync<T>(T tuple) where T : struct
     {
         var properties = typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-        var values = new string[properties.Length];
+        var values = new string[properties.Length + 1];
+        values[0] = typeof(T).Name;
         for (int i = 0; i < properties.Length; i++)
         {
-            values[i] = properties[i].GetValue(tuple)?.ToString() ?? "";
+            values[i + 1] = properties[i].GetValue(tuple)?.ToString() ?? "";
         }
         return await OutAsync(values);
     }
@@ -130,7 +131,10 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T> InAsync<T>(params string[] pattern) where T : struct
     {
-        var result = await InAsync(pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await InAsync(fullPattern);
         return MapToStruct<T>(result);
     }
 
@@ -151,7 +155,10 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T> InAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
     {
-        var result = await InAsync(timeout, pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await InAsync(timeout, fullPattern);
         return MapToStruct<T>(result);
     }
 
@@ -162,7 +169,10 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T> RdAsync<T>(params string[] pattern) where T : struct
     {
-        var result = await RdAsync(pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await RdAsync(fullPattern);
         return MapToStruct<T>(result);
     }
 
@@ -183,7 +193,10 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T> RdAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
     {
-        var result = await RdAsync(timeout, pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await RdAsync(timeout, fullPattern);
         return MapToStruct<T>(result);
     }
 
@@ -196,7 +209,10 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T?> InpAsync<T>(params string[] pattern) where T : struct
     {
-        var result = await InpAsync(pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await InpAsync(fullPattern);
         return result == null ? null : MapToStruct<T>(result);
     }
 
@@ -209,21 +225,27 @@ public class TupleSpaceClient : IDisposable
 
     public async Task<T?> RdpAsync<T>(params string[] pattern) where T : struct
     {
-        var result = await RdpAsync(pattern);
+        var fullPattern = new string[pattern.Length + 1];
+        fullPattern[0] = typeof(T).Name;
+        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        var result = await RdpAsync(fullPattern);
         return result == null ? null : MapToStruct<T>(result);
     }
 
     private T MapToStruct<T>(string[] values) where T : struct
     {
         var properties = typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-        if (values.Length != properties.Length)
-            throw new Exception($"Tuple length {values.Length} does not match struct {typeof(T).Name} property count {properties.Length}");
+        if (values.Length != properties.Length + 1)
+            throw new Exception($"Tuple length {values.Length} does not match struct {typeof(T).Name} property count {properties.Length} (+1 for type name)");
+
+        if (values[0] != typeof(T).Name)
+            throw new Exception($"Tuple type name {values[0]} does not match expected {typeof(T).Name}");
 
         object obj = default(T);
         for (int i = 0; i < properties.Length; i++)
         {
             var propertyType = properties[i].PropertyType;
-            var val = Convert.ChangeType(values[i], propertyType);
+            var val = Convert.ChangeType(values[i + 1], propertyType);
             properties[i].SetValue(obj, val);
         }
         return (T)obj;

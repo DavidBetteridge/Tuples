@@ -13,18 +13,40 @@ The system consists of four main components:
 
 ## Core Operations (Linda Primitives)
 
-The `TupleSpaceClient` provides the following operations:
+The `TupleSpaceClient` provides the following operations. Both string-based and generic type-safe APIs are supported.
+
+### String-Based API
 
 | Operation | Description |
 | :--- | :--- |
-| `OutAsync(tuple)` | **Produce**: Adds a tuple to the space. |
-| `InAsync(pattern)` | **Consume**: Blocks until a tuple matching the pattern is available, then removes and returns it. |
-| `RdAsync(pattern)` | **Read**: Blocks until a tuple matching the pattern is available, then returns it without removing it. |
-| `InpAsync(pattern)` | **Probe Consume**: Non-blocking version of `IN`. Returns null if no match is found immediately. |
-| `RdpAsync(pattern)` | **Probe Read**: Non-blocking version of `RD`. Returns null if no match is found immediately. |
-| `BulkOutScope(client)` | **Bulk Produce**: Buffers `OUT` operations and sends them as a single atomic command when disposed. |
+| `OutAsync(params string[] tuple)` | **Produce**: Adds a tuple to the space. |
+| `InAsync(params string[] pattern)` | **Consume**: Blocks until a tuple matching the pattern is available, then removes and returns it. |
+| `RdAsync(params string[] pattern)` | **Read**: Blocks until a tuple matching the pattern is available, then returns it without removing it. |
+| `InpAsync(params string[] pattern)` | **Probe Consume**: Non-blocking version of `IN`. |
+| `RdpAsync(params string[] pattern)` | **Probe Read**: Non-blocking version of `RD`. |
 
 *Patterns support wildcards using the `"*"` string.*
+
+### Generic API (Type-Safe)
+
+The generic API uses C# structs to represent tuples. When using generics, the name of the struct is automatically prepended as the first element of the tuple in the tuple space.
+
+```csharp
+[TupleDefinition]
+public struct TaskTuple 
+{
+    public string Id { get; set; }
+    public int Priority { get; set; }
+}
+
+// Writes ("TaskTuple", "task-1", "10") to the space
+await client.OutAsync(new TaskTuple { Id = "task-1", Priority = 10 });
+
+// Reads back a TaskTuple
+var task = await client.InAsync<TaskTuple>("task-1", "*");
+```
+
+Generic methods include `OutAsync<T>`, `InAsync<T>`, `RdAsync<T>`, `InpAsync<T>`, and `RdpAsync<T>`. Structs used with the generic API should be marked with the `[TupleDefinition]` attribute if they need to be available for remote evaluation.
 
 ## Bulk Operations
 
