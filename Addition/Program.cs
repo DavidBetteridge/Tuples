@@ -1,26 +1,31 @@
 ﻿using TupleClient;
 
-const int numCount = 10;
+// Given the numbers 1...numCount this example will sum them all together.
+const int numCount = 1000;
+
+// For this example, we are going to create a tuple space with a unique name, starting addition
 var spaceName = "addition" + Guid.NewGuid();
+
+// Connect to the tuple space server.
+// When running on different computers, don't use a local address!
 using var client = new TupleSpaceClient("127.0.0.1", 8080, spaceName);
 
-// 1. Put numbers into the space
+// We write all the numbers we wish to add along with some meta-data and tokens to the tuple space.
 await SetupData(client, numCount);
 
-Console.WriteLine("Adding");
 
-// 3. Submit work to the expression runner using the generated code string
+// Now send the code in RemoteCode.PerformAddition to taskCount different machines.  
+// This is done by creating taskCount tuples in an expressions tuplespace.  The contents
+// of the tuple is the code in RemoteCode.PerformAddition 
+Console.WriteLine("Adding");
 var taskCount = 10;
 var tasks = new Task[taskCount - 1];
 for (var i = 0; i < taskCount - 1; i++)
-{
-    // This comes from AdditionLogic.PerformAddition below
     tasks[i] = client.EvalAsync(RemoteCode.PerformAddition);
-}
-
 await Task.WhenAll(tasks);
 
-// 4. Wait for the result
+
+// When the final addition has completed,  the result is written to the tuple (total, *)
 Console.WriteLine("Waiting for result...");
 var finalResult = await client.InAsync("total", "*");
 Console.WriteLine($"Final Result: {finalResult?[1]}");
