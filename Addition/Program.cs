@@ -15,7 +15,7 @@ await SetupData(client, numCount);
 
 
 // Now send the code in RemoteCode.PerformAddition to taskCount different machines.  
-// This is done by creating taskCount tuples in an expressions tuplespace.  The contents
+// This is done by creating taskCount tuples in an expressions tuple-space.  The contents
 // of the tuple is the code in RemoteCode.PerformAddition 
 Console.WriteLine("Adding");
 var taskCount = 10;
@@ -25,9 +25,9 @@ for (var i = 0; i < taskCount - 1; i++)
 await Task.WhenAll(tasks);
 
 
-// When the final addition has completed,  the result is written to the tuple (total, *)
+// When the final addition has completed, the result is written to the tuple (total, *)
 Console.WriteLine("Waiting for result...");
-var finalResult = await client.InAsync<ValueTuple>("*", numCount.ToString());
+var finalResult = await client.InAsync<ValueTuple>(Wildcard.Any, numCount);
 Console.WriteLine($"Final Result: {finalResult.Value}");
 
 async Task SetupData(TupleSpaceClient tupleSpaceClient, int size)
@@ -65,8 +65,8 @@ public static class AdditionLogic
             var token = await c.InpAsync<WorkTuple>();
             if (token is null) break;
             
-            var lhs = await c.InAsync<ValueTuple>("*", "*");
-            var rhs = await c.InAsync<ValueTuple>("*", "*");
+            var lhs = await c.InAsync<ValueTuple>(Wildcard.Any, Wildcard.Any);
+            var rhs = await c.InAsync<ValueTuple>(Wildcard.Any, Wildcard.Any);
             
             var total = lhs.Value + rhs.Value;
             var count = lhs.Count + rhs.Count;

@@ -42,11 +42,54 @@ public struct TaskTuple
 // Writes ("TaskTuple", "task-1", "10") to the space
 await client.OutAsync(new TaskTuple { Id = "task-1", Priority = 10 });
 
-// Reads back a TaskTuple
-var task = await client.InAsync<TaskTuple>("task-1", "*");
+// Reads back a TaskTuple with exact values
+var task = await client.InAsync<TaskTuple>("task-1", 10);
+
+// Use Wildcard.Any for pattern matching
+var anyTask = await client.InAsync<TaskTuple>(Wildcard.Any, Wildcard.Any);
 ```
 
 Generic methods include `OutAsync<T>`, `InAsync<T>`, `RdAsync<T>`, `InpAsync<T>`, and `RdpAsync<T>`. Structs used with the generic API should be marked with the `[TupleDefinition]` attribute if they need to be available for remote evaluation.
+
+### Wildcard Matching
+
+For pattern matching in generic methods, use `Wildcard.Any` instead of the string `"*"`. This provides type safety and avoids ambiguity when a tuple value might actually be the literal string `"*"`.
+
+```csharp
+// Match any TaskTuple regardless of Id or Priority
+var task = await client.InAsync<TaskTuple>(Wildcard.Any, Wildcard.Any);
+
+// Match a specific Id with any Priority
+var task = await client.InAsync<TaskTuple>("task-1", Wildcard.Any);
+```
+
+### Compile-Time Validation
+
+The `TupleClient.Generators` package includes a Roslyn analyzer that validates generic tuple method calls at compile time:
+
+- **TUPLE001**: Reports an error if the number of pattern parameters doesn't match the number of properties in the tuple struct.
+- **TUPLE002**: Reports an error if a parameter type doesn't match the corresponding property type (unless `Wildcard.Any` is used).
+
+```csharp
+[TupleDefinition]
+public struct TaskTuple 
+{
+    public string Id { get; set; }
+    public int Priority { get; set; }
+}
+
+// ✓ Correct: 2 parameters matching 2 properties with correct types
+await client.InAsync<TaskTuple>("task-1", 10);
+
+// ✓ Correct: Wildcard.Any can match any type
+await client.InAsync<TaskTuple>(Wildcard.Any, Wildcard.Any);
+
+// ✗ Error TUPLE001: Wrong number of parameters
+await client.InAsync<TaskTuple>("task-1");
+
+// ✗ Error TUPLE002: Type mismatch - Priority expects int, not string
+await client.InAsync<TaskTuple>("task-1", "high");
+```
 
 ## Bulk Operations
 

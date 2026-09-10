@@ -129,13 +129,25 @@ public class TupleSpaceClient : IDisposable
         return await InAsync(Timeout.InfiniteTimeSpan, pattern);
     }
 
-    public async Task<T> InAsync<T>(params string[] pattern) where T : struct
+    public async Task<T> InAsync<T>(params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await InAsync(fullPattern);
         return MapToStruct<T>(result);
+    }
+
+    private static string[] ConvertPatternToStrings(object[] pattern)
+    {
+        var result = new string[pattern.Length];
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            result[i] = pattern[i]?.ToString() ?? "";
+        }
+        return result;
     }
 
     public async Task<string[]> InAsync(TimeSpan timeout, params string[] pattern)
@@ -153,11 +165,13 @@ public class TupleSpaceClient : IDisposable
         }
     }
 
-    public async Task<T> InAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
+    public async Task<T> InAsync<T>(TimeSpan timeout, params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await InAsync(timeout, fullPattern);
         return MapToStruct<T>(result);
     }
@@ -167,11 +181,13 @@ public class TupleSpaceClient : IDisposable
         return await RdAsync(Timeout.InfiniteTimeSpan, pattern);
     }
 
-    public async Task<T> RdAsync<T>(params string[] pattern) where T : struct
+    public async Task<T> RdAsync<T>(params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await RdAsync(fullPattern);
         return MapToStruct<T>(result);
     }
@@ -191,11 +207,13 @@ public class TupleSpaceClient : IDisposable
         }
     }
 
-    public async Task<T> RdAsync<T>(TimeSpan timeout, params string[] pattern) where T : struct
+    public async Task<T> RdAsync<T>(TimeSpan timeout, params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await RdAsync(timeout, fullPattern);
         return MapToStruct<T>(result);
     }
@@ -207,11 +225,13 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public async Task<T?> InpAsync<T>(params string[] pattern) where T : struct
+    public async Task<T?> InpAsync<T>(params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await InpAsync(fullPattern);
         return result == null ? null : MapToStruct<T>(result);
     }
@@ -223,11 +243,13 @@ public class TupleSpaceClient : IDisposable
         return null;
     }
 
-    public async Task<T?> RdpAsync<T>(params string[] pattern) where T : struct
+    public async Task<T?> RdpAsync<T>(params object[] pattern) where T : struct
     {
-        var fullPattern = new string[pattern.Length + 1];
+        var stringPattern = ConvertPatternToStrings(pattern);
+        var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        Array.Copy(pattern, 0, fullPattern, 1, pattern.Length);
+        for (int i = 0; i < stringPattern.Length; i++)
+            fullPattern[i + 1] = stringPattern[i];
         var result = await RdpAsync(fullPattern);
         return result == null ? null : MapToStruct<T>(result);
     }
