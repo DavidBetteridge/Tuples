@@ -21,7 +21,7 @@ Console.WriteLine("Adding");
 var taskCount = 10;
 var tasks = new Task[taskCount - 1];
 for (var i = 0; i < taskCount - 1; i++)
-    tasks[i] = client.EvalAsync(RemoteCode.PerformAddition, RemoteCode.TupleDefinitions);
+    tasks[i] = client.RunRemotelyAsync(RemoteCode.PerformAddition, RemoteCode.TupleDefinitions);
 await Task.WhenAll(tasks);
 
 

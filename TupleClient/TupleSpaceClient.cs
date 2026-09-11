@@ -298,12 +298,12 @@ public class TupleSpaceClient : IDisposable
         return RdpAsync(pattern).GetAwaiter().GetResult();
     }
 
-    public async Task EvalAsync(string code)
+    public async Task RunRemotelyAsync(string code)
     {
-        await EvalAsync(code, "");
+        await RunRemotelyAsync(code, "");
     }
 
-    public async Task EvalAsync(string code, string tupleDefinitions)
+    public async Task RunRemotelyAsync(string code, string tupleDefinitions)
     {
         using var expressionClient = new TupleSpaceClient(_host, _port, "expressions");
         await expressionClient.OutAsync("expression", _spaceName, code, tupleDefinitions);

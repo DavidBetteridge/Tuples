@@ -104,9 +104,9 @@ using (var scope = new BulkOutScope(client))
 }
 ```
 
-## Remote Execution (`EvalAsync`)
+## Remote Execution (`RunRemotelyAsync`)
 
-The system supports a powerful `EvalAsync` mechanism that allows code to be shipped to a remote `ExpressionRunner` for execution close to the data.
+The system supports a powerful `RunRemotelyAsync` mechanism that allows code to be shipped to a remote `ExpressionRunner` for execution close to the data.
 
 ### 1. Define Remote Logic
 Mark a static method with the `[RemoteEval]` attribute. The method must take a `TupleSpaceClient` as its first argument (usually named `c`).
@@ -125,10 +125,10 @@ public static class MyLogic
 ```
 
 ### 2. Invoke Remotely
-The Source Generator automatically extracts the method body as a string and puts it in a `RemoteCode` class. Use `EvalAsync` to send this code to the runner:
+The Source Generator automatically extracts the method body as a string and puts it in a `RemoteCode` class. Use `RunRemotelyAsync` to send this code to the runner:
 
 ```csharp
-await client.EvalAsync(RemoteCode.PerformWork);
+await client.RunRemotelyAsync(RemoteCode.PerformWork);
 ```
 
 ## Getting Started
