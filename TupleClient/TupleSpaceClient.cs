@@ -114,6 +114,82 @@ public class TupleSpaceClient(string host, int port, string spaceName) : IDispos
         return await OutAsync(values);
     }
 
+    public async Task EvalAsync<T>(T liveTuple) where T : struct
+    {
+        var properties = typeof(T).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        var evaluationTasks = new List<(int Index, Task<object?> Task)>();
+        var values = new string[properties.Length + 1];
+        values[0] = typeof(T).Name;
+
+        for (var i = 0; i < properties.Length; i++)
+        {
+            var value = properties[i].GetValue(liveTuple);
+            if (value is Delegate del)
+            {
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var result = del.DynamicInvoke();
+                        if (result is Task t)
+                        {
+                            await t.ConfigureAwait(false);
+                            var resultProperty = t.GetType().GetProperty("Result");
+                            return resultProperty?.GetValue(t);
+                        }
+                        return result;
+                    }
+                    catch (Exception ex)
+                    {
+                        return ex;
+                    }
+                });
+                evaluationTasks.Add((i + 1, task));
+            }
+            else
+            {
+                values[i + 1] = value?.ToString() ?? "";
+            }
+        }
+
+        if (evaluationTasks.Count == 0)
+        {
+            await OutAsync(values).ConfigureAwait(false);
+            return;
+        }
+
+        var hostToUse = host;
+        var portToUse = port;
+        var spaceNameToUse = spaceName;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.WhenAll(evaluationTasks.Select(t => t.Task)).ConfigureAwait(false);
+                foreach (var (index, task) in evaluationTasks)
+                {
+                    var result = await task.ConfigureAwait(false);
+                    if (result is Exception)
+                    {
+                         values[index] = $"Error: {((Exception)result).Message}";
+                    }
+                    else
+                    {
+                        values[index] = result?.ToString() ?? "";
+                    }
+                }
+
+                using var client = new TupleSpaceClient(hostToUse, portToUse, spaceNameToUse);
+                await client.OutAsync(values).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // In a production system, we'd use a real logger
+            }
+        });
+    }
+
     public async Task<string[]> InAsync(params string[] pattern)
     {
         return await InAsync(Timeout.InfiniteTimeSpan, pattern);

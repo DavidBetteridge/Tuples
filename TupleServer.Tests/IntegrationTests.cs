@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
 using TupleClient;
@@ -149,5 +150,35 @@ public class IntegrationTests
         
         Assert.That(res1, Is.EqualTo(new[] { "work", "1" }));
         Assert.That(res2, Is.EqualTo(new[] { "work", "2" }));
+    }
+
+    [TupleDefinition]
+    public struct LiveTuple
+    {
+        public string Name { get; set; }
+        public object Value { get; set; }
+    }
+
+    [Test]
+    public async Task TestClientLibrary_Eval()
+    {
+        using var client = new TupleSpaceClient("127.0.0.1", Port, "test-eval");
+
+        var evalTask = client.EvalAsync(new LiveTuple
+        {
+            Name = "Task1",
+            Value = new Func<Task<int>>(async () =>
+            {
+                await Task.Delay(100);
+                return (int)Math.Sqrt(36);
+            })
+        });
+
+        // The tuple becomes a LiveTuple in the space once finished.
+        var result = await client.InAsync<LiveTuple>(TimeSpan.FromSeconds(5), "Task1", Wildcard.Any);
+        Assert.That(result.Value.ToString(), Is.EqualTo("6"));
+        Assert.That(result.Name, Is.EqualTo("Task1"));
+        
+        await evalTask;
     }
 }
