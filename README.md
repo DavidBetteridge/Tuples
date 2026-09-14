@@ -51,6 +51,33 @@ var anyTask = await client.InAsync<TaskTuple>(Wildcard.Any, Wildcard.Any);
 
 Generic methods include `OutAsync<T>`, `InAsync<T>`, `RdAsync<T>`, `InpAsync<T>`, and `RdpAsync<T>`. Structs used with the generic API should be marked with the `[TupleDefinition]` attribute if they need to be available for remote evaluation.
 
+### Live Tuples (`EvalAsync`)
+
+The `EvalAsync` operation creates a **Live Tuple**. A live tuple contains a mixture of normal values and expressions (delegates) to be evaluated.
+
+The evaluation happens concurrently on background threads. Once all expressions are evaluated, the results replace the expressions in the tuple, and the final "normal" tuple is published to the tuple space.
+
+```csharp
+[TupleDefinition]
+public struct MyTuple {
+    public string Name { get; set; }
+    public object Value { get; set; }
+}
+
+// Start concurrent evaluation
+await client.EvalAsync(new MyTuple {
+    Name = "Task1",
+    Value = new Func<Task<int>>(async () => {
+        await Task.Delay(100);
+        return 42;
+    })
+});
+
+// This will block until the evaluation is complete and the tuple is published
+var result = await client.InAsync<MyTuple>("Task1", Wildcard.Any);
+// result.Value will be "42"
+```
+
 ### Wildcard Matching
 
 For pattern matching in generic methods, use `Wildcard.Any` instead of the string `"*"`. This provides type safety and avoids ambiguity when a tuple value might actually be the literal string `"*"`.
