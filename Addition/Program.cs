@@ -1,7 +1,7 @@
 ﻿using TupleClient;
 
 // Given the numbers 1...numCount this example will sum them all together.
-const int numCount = 1000;
+const int numCount = 100;
 
 // For this example, we are going to create a tuple space with a unique name, starting addition
 var spaceName = "addition" + Guid.NewGuid();

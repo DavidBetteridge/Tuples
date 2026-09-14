@@ -3,11 +3,8 @@ using System.Text;
 
 namespace TupleClient;
 
-public class TupleSpaceClient : IDisposable
+public class TupleSpaceClient(string host, int port, string spaceName) : IDisposable
 {
-    private readonly string _host;
-    private readonly int _port;
-    private readonly string _spaceName;
     private TcpClient? _client;
     private NetworkStream? _stream;
     private StreamReader? _reader;
@@ -15,13 +12,6 @@ public class TupleSpaceClient : IDisposable
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly Lock _scopeLock = new();
     private BulkOutScope? _currentBulkScope;
-
-    public TupleSpaceClient(string host, int port, string spaceName)
-    {
-        _host = host;
-        _port = port;
-        _spaceName = spaceName;
-    }
 
     internal void EnterBulkOutScope(BulkOutScope scope)
     {
@@ -48,7 +38,7 @@ public class TupleSpaceClient : IDisposable
         try
         {
             await EnsureConnectedAsync();
-            var command = new { Type = "OUTBULK", SpaceName = _spaceName, Tuples = tuples };
+            var command = new { Type = "OUTBULK", SpaceName = spaceName, Tuples = tuples };
             await _writer!.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(command));
             var line = await _reader!.ReadLineAsync();
             if (line == null) throw new Exception("Disconnected from server");
@@ -66,13 +56,13 @@ public class TupleSpaceClient : IDisposable
         if (_client == null || !_client.Connected)
         {
             _client = new TcpClient();
-            await _client.ConnectAsync(_host, _port, cancellationToken);
+            await _client.ConnectAsync(host, port, cancellationToken);
             _stream = _client.GetStream();
             _reader = new StreamReader(_stream, Encoding.UTF8);
             _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
 
             // Create/Ensure space exists
-            var createCommand = new { Type = "CREATE", SpaceName = _spaceName, Tuple = (string[]?)null };
+            var createCommand = new { Type = "CREATE", SpaceName = spaceName, Tuple = (string[]?)null };
             await _writer.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(createCommand));
             var createLine = await _reader.ReadLineAsync(cancellationToken);
             if (createLine == null) throw new Exception("Disconnected from server during CREATE");
@@ -87,7 +77,7 @@ public class TupleSpaceClient : IDisposable
         {
             await EnsureConnectedAsync(cancellationToken);
 
-            var command = new { Type = type, SpaceName = _spaceName, Tuple = tuple };
+            var command = new { Type = type, SpaceName = spaceName, Tuple = tuple };
             await _writer!.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(command));
             
             var line = await _reader!.ReadLineAsync(cancellationToken);
@@ -134,7 +124,7 @@ public class TupleSpaceClient : IDisposable
         var stringPattern = ConvertPatternToStrings(pattern);
         var fullPattern = new string[stringPattern.Length + 1];
         fullPattern[0] = typeof(T).Name;
-        for (int i = 0; i < stringPattern.Length; i++)
+        for (var i = 0; i < stringPattern.Length; i++)
             fullPattern[i + 1] = stringPattern[i];
         var result = await InAsync(fullPattern);
         return MapToStruct<T>(result);
@@ -143,9 +133,9 @@ public class TupleSpaceClient : IDisposable
     private static string[] ConvertPatternToStrings(object[] pattern)
     {
         var result = new string[pattern.Length];
-        for (int i = 0; i < pattern.Length; i++)
+        for (var i = 0; i < pattern.Length; i++)
         {
-            result[i] = pattern[i]?.ToString() ?? "";
+            result[i] = pattern[i].ToString() ?? "";
         }
         return result;
     }
@@ -272,31 +262,7 @@ public class TupleSpaceClient : IDisposable
         }
         return (T)obj;
     }
-
-    public string[] Out(params string[] tuple)
-    {
-        return OutAsync(tuple).GetAwaiter().GetResult();
-    }
-
-    public string[] In(params string[] pattern)
-    {
-        return InAsync(pattern).GetAwaiter().GetResult();
-    }
-
-    public string[] Rd(params string[] pattern)
-    {
-        return RdAsync(pattern).GetAwaiter().GetResult();
-    }
-
-    public string[]? Inp(params string[] pattern)
-    {
-        return InpAsync(pattern).GetAwaiter().GetResult();
-    }
-
-    public string[]? Rdp(params string[] pattern)
-    {
-        return RdpAsync(pattern).GetAwaiter().GetResult();
-    }
+  
 
     public async Task RunRemotelyAsync(string code)
     {
@@ -305,8 +271,8 @@ public class TupleSpaceClient : IDisposable
 
     public async Task RunRemotelyAsync(string code, string tupleDefinitions)
     {
-        using var expressionClient = new TupleSpaceClient(_host, _port, "expressions");
-        await expressionClient.OutAsync("expression", _spaceName, code, tupleDefinitions);
+        using var expressionClient = new TupleSpaceClient(host, port, "expressions");
+        await expressionClient.OutAsync("expression", spaceName, code, tupleDefinitions);
     }
 
     public void Dispose()
