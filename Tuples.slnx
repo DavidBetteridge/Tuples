@@ -4,5 +4,6 @@
   <Project Path="TupleClient.Generators/TupleClient.Generators.csproj" />
   <Project Path="TupleClient/TupleClient.csproj" />
   <Project Path="TupleServer.Tests/TupleServer.Tests.csproj" />
+  <Project Path="SudokuSolver/SudokuSolver.csproj" />
   <Project Path="TupleServer/TupleServer.csproj" />
 </Solution>

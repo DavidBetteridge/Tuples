@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using TupleClient;
 
+
 if (args.Length == 0)
 {
     Console.WriteLine("Please supply the name of the client");
@@ -17,7 +18,7 @@ using var expressionClient = new TupleSpaceClient("127.0.0.1", 8080, "expression
 // Set up script options with necessary references and imports
 var scriptOptions = ScriptOptions.Default
     .AddReferences(typeof(TupleSpaceClient).Assembly)
-    .AddImports("System", "System.Threading.Tasks", "TupleClient");
+    .AddImports("System", "System.Threading.Tasks", "TupleClient", "System.Collections.Generic");
 
 while (true)
 {
