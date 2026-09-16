@@ -10,6 +10,22 @@ public class TupleSpace
 
     private record Waiter(string[]? Pattern, TaskCompletionSource<string[]> Tcs, bool Remove);
 
+    public int Count
+    {
+        get
+        {
+            lock (_lock) return _tuples.Count;
+        }
+    }
+
+    public int WaiterCount
+    {
+        get
+        {
+            lock (_lock) return _waitingGetters.Count;
+        }
+    }
+
     public void Add(string[] tuple)
     {
         var toNotify = new List<Waiter>();
@@ -28,20 +44,14 @@ public class TupleSpace
                             toNotify.Add(waiter);
                             _waitingGetters.RemoveAt(i);
                             alreadyMatchedGet = true;
-                            // We found a GET waiter. We can stop now because one tuple can only satisfy one GET.
-                            // But wait, there might be earlier RD waiters that we should also satisfy?
-                            // No, the loop goes from 0 to Count. We should satisfy ALL RD waiters that match
-                            // and AT MOST one GET waiter.
                         }
                         else
                         {
-                            // Already matched a GET waiter, this other GET waiter must keep waiting.
                             i++;
                         }
                     }
                     else
                     {
-                        // RD waiter
                         toNotify.Add(waiter);
                         _waitingGetters.RemoveAt(i);
                     }
@@ -52,7 +62,6 @@ public class TupleSpace
                 }
             }
 
-            // If no GET waiter consumed it, add it to the space
             if (!alreadyMatchedGet)
             {
                 _tuples.Add(tuple);
@@ -159,4 +168,11 @@ public class TupleSpaceManager
     {
         return _spaces.GetOrAdd(name, _ => new TupleSpace());
     }
+
+    public IEnumerable<(string Name, TupleSpace Space)> GetActiveSpaces()
+    {
+        return _spaces.Select(kv => (kv.Key, kv.Value));
+    }
+
+    public int SpaceCount => _spaces.Count;
 }

@@ -9,24 +9,28 @@ public class TcpServer
 {
     private readonly int _port;
     private readonly TupleSpaceManager _manager;
+    private readonly ServerStatistics _stats;
 
-    public TcpServer(int port)
+    public TcpServer(int port, ServerStatistics stats)
     {
         _port = port;
+        _stats = stats;
         _manager = new TupleSpaceManager();
     }
+
+    public TupleSpaceManager Manager => _manager;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var listener = new TcpListener(IPAddress.Any, _port);
         listener.Start();
-        Console.WriteLine($"Server started on port {_port}");
-
+        
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 var client = await listener.AcceptTcpClientAsync(cancellationToken);
+                _stats.ConnectionStarted();
                 _ = HandleClientAsync(client, cancellationToken);
             }
         }
@@ -38,34 +42,40 @@ public class TcpServer
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
-        using var _ = client;
-        using var stream = client.GetStream();
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
-        
-        var writerLock = new SemaphoreSlim(1, 1);
         try
         {
-            var tasks = new List<Task>();
-            while (!cancellationToken.IsCancellationRequested && client.Connected)
+            using (client)
             {
-                var line = await reader.ReadLineAsync(cancellationToken);
-                if (line == null) break;
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 
-                var command = JsonSerializer.Deserialize<Command>(line);
-                if (command == null) continue;
+                var writerLock = new SemaphoreSlim(1, 1);
+                var tasks = new List<Task>();
+                while (!cancellationToken.IsCancellationRequested && client.Connected)
+                {
+                    var line = await reader.ReadLineAsync(cancellationToken);
+                    if (line == null) break;
 
-                var task = ProcessCommandAsync(command, writer, writerLock, cancellationToken);
-                tasks.Add(task);
-                
-                // Clean up completed tasks
-                tasks.RemoveAll(t => t.IsCompleted);
+                    var command = JsonSerializer.Deserialize<Command>(line);
+                    if (command == null) continue;
+
+                    var task = ProcessCommandAsync(command, writer, writerLock, cancellationToken);
+                    tasks.Add(task);
+
+                    // Clean up completed tasks
+                    tasks.RemoveAll(t => t.IsCompleted);
+                }
+                await Task.WhenAll(tasks);
             }
-            await Task.WhenAll(tasks);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error handling client: {ex.Message}");
+            // Logging removed as we have a dashboard now, or could log to a dedicated window
+        }
+        finally
+        {
+            _stats.ConnectionEnded();
         }
     }
 
@@ -84,6 +94,7 @@ public class TcpServer
                 if (command.Tuple != null)
                 {
                     space.Add(command.Tuple);
+                    _stats.IncrementOut();
                     response = new { Status = "OK" };
                 }
                 break;
@@ -92,22 +103,26 @@ public class TcpServer
                 if (command.Tuples != null)
                 {
                     space.AddBulk(command.Tuples);
+                    _stats.IncrementOut(command.Tuples.Count);
                     response = new { Status = "OK" };
                 }
                 break;
 
             case "IN":
                 var tuple = await space.GetAsync(command.Tuple, true, cancellationToken);
+                _stats.IncrementIn();
                 response = new { Status = "OK", Tuple = tuple };
                 break;
 
             case "RD":
                 var rdTuple = await space.GetAsync(command.Tuple, false, cancellationToken);
+                _stats.IncrementRd();
                 response = new { Status = "OK", Tuple = rdTuple };
                 break;
 
             case "INP":
                 var inpTuple = space.TryGet(command.Tuple, true);
+                _stats.IncrementInp();
                 if (inpTuple != null)
                     response = new { Status = "OK", Tuple = inpTuple };
                 else
@@ -116,6 +131,7 @@ public class TcpServer
 
             case "RDP":
                 var rdpTuple = space.TryGet(command.Tuple, false);
+                _stats.IncrementRdp();
                 if (rdpTuple != null)
                     response = new { Status = "OK", Tuple = rdpTuple };
                 else

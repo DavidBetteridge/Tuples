@@ -24,11 +24,12 @@ while (true)
 {
     try
     {
-        // Tuple format: ["expression", spaceName, code, tupleDefinitions]
-        var tuple = await expressionClient.InAsync("expression", "*", "*", "*");
+        // Tuple format: ["expression", spaceName, code, tupleDefinitions, data]
+        var tuple = await expressionClient.InAsync("expression", "*", "*", "*", "*");
         var spaceName = tuple[1];
         var code = tuple[2];
         var tupleDefinitions = tuple[3];
+        var workerId = int.Parse(tuple[4]);
 
         Console.WriteLine($"Received code for space: {spaceName}");
 
@@ -61,7 +62,7 @@ while (true)
                     return;
                 }
                 
-                var globals = new ScriptGlobals { c = client, processName = processName};
+                var globals = new ScriptGlobals { c = client, processName = processName, workerId = workerId};
                 var result = await script.RunAsync(globals);
                 
                 // If the script returns a Task, await it
@@ -89,4 +90,5 @@ public class ScriptGlobals
 {
     public TupleSpaceClient c { get; set; } = null!;
     public required string processName { get; set; }
+    public required int workerId { get; set; }
 }

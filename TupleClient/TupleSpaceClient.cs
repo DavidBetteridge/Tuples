@@ -339,16 +339,10 @@ public class TupleSpaceClient(string host, int port, string spaceName) : IDispos
         return (T)obj;
     }
   
-
-    public async Task RunRemotelyAsync(string code)
-    {
-        await RunRemotelyAsync(code, "");
-    }
-
-    public async Task RunRemotelyAsync(string code, string tupleDefinitions)
+    public async Task RunRemotelyAsync(string code, string tupleDefinitions, int workerId)
     {
         using var expressionClient = new TupleSpaceClient(host, port, "expressions");
-        await expressionClient.OutAsync("expression", spaceName, code, tupleDefinitions);
+        await expressionClient.OutAsync("expression", spaceName, code, tupleDefinitions, workerId.ToString());
     }
 
     public void Dispose()

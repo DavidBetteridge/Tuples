@@ -16,7 +16,8 @@ var workerCount = 10;
 var workers = new Task[workerCount];
 for (var i = 0; i < workerCount; i++)
 {
-    workers[i] = client.RunRemotelyAsync(RemoteCode.PerformSudokuSolve, RemoteCode.TupleDefinitions);
+    await client.OutAsync(new AliveTuple { WorkerId = i } );
+    workers[i] = client.RunRemotelyAsync(RemoteCode.PerformSudokuSolve, RemoteCode.TupleDefinitions, i);
 }
 
 // Wait for a solution
@@ -24,9 +25,9 @@ var solution = await client.InAsync<SolutionTuple>(Wildcard.Any);
 Console.WriteLine("Solution Found:");
 Console.WriteLine(FormatGrid(solution.Grid));
 
-// Cleanup: The workers might still be running or waiting for Grid tuples.
-// In a real scenario, we might want to signal them to stop more gracefully.
-// For this example, we just exit.
+// Kill all the workers
+for (var i = 0; i < workerCount; i++)
+    await client.InAsync<AliveTuple>(i);
 
 string NormalizeGrid(string grid) => grid.Replace('.', ' ').Replace('0', ' ');
 
@@ -59,16 +60,22 @@ public readonly struct SolutionTuple
     public required string Grid { get; init; }
 }
 
+[TupleDefinition]
+public readonly struct AliveTuple
+{
+    public required int WorkerId { get; init; }
+}
+
 public static class SudokuLogic
 {
     [RemoteEval]
-    public static async Task PerformSudokuSolve(TupleSpaceClient c, string processName)
+    public static async Task PerformSudokuSolve(TupleSpaceClient c, string processName, int workerId)
     {
         while (true)
         {
-            // 1. Check for a ('Solution', ?) tuple and exit if one already exists.
-            var solution = await c.RdpAsync<SolutionTuple>(Wildcard.Any);
-            if (solution is not null) break;
+            // 1. Check we are still alive
+            var alive = await c.RdpAsync<AliveTuple>(workerId);
+            if (alive is null) break;
 
             // 2. Get a ('Grid', ?) tuple from the tuple space.
             var gridTuple = await c.InpAsync<GridTuple>(Wildcard.Any);

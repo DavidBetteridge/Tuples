@@ -12,7 +12,7 @@ public class GenericsTests
     public void Setup()
     {
         _cts = new CancellationTokenSource();
-        var server = new TcpServer(Port);
+        var server = new TcpServer(Port, new ServerStatistics());
         _serverTask = server.StartAsync(_cts.Token);
     }
 
