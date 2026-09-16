@@ -97,6 +97,7 @@ public static class SudokuLogic
             var possibleValues = GetPossibleValues(grid, emptyIndex);
 
             // 6. For each possible value, write a new (Grid, ) tuple, but with square in the grid with the possible value added.
+            using var scope = new BulkOutScope(c);
             foreach (var val in possibleValues)
             {
                 var newGrid = grid.ToCharArray();
