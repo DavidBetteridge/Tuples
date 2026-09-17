@@ -184,4 +184,6 @@ dotnet run --project Addition/Program.cs
 - `TupleClient.Generators/`: The Roslyn Source Generator.
 - `ExpressionRunner/`: The worker process using `Microsoft.CodeAnalysis.CSharp.Scripting`.
 - `Addition/`: An example application utilizing all components.
+- `SudokuSolver/`: An example demonstrating recursive solving via distributed tasks.
+- `DataFlow/`: A data pipeline example showing Stage 0 (generation), Stage 1 (doubling), and Stage 2 (incrementing).
 - `TupleServer.Tests/`: Integration tests for the core protocol.
