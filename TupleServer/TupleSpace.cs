@@ -7,6 +7,7 @@ public class TupleSpace
     private readonly List<string[]> _tuples = new();
     private readonly Lock _lock = new();
     private readonly List<Waiter> _waitingGetters = new();
+    private readonly Random _random = new();
 
     private record Waiter(string[]? Pattern, TaskCompletionSource<string[]> Tcs, bool Remove);
 
@@ -80,16 +81,21 @@ public class TupleSpace
         Waiter waiter;
         lock (_lock)
         {
-            for (var i = 0; i < _tuples.Count; i++)
+            if (_tuples.Count > 0)
             {
-                if (Matches(_tuples[i], pattern))
+                var startIndex = _random.Next(_tuples.Count);
+                for (var i = 0; i < _tuples.Count; i++)
                 {
-                    var tuple = _tuples[i];
-                    if (remove)
+                    var index = (startIndex + i) % _tuples.Count;
+                    if (Matches(_tuples[index], pattern))
                     {
-                        _tuples.RemoveAt(i);
+                        var tuple = _tuples[index];
+                        if (remove)
+                        {
+                            _tuples.RemoveAt(index);
+                        }
+                        return tuple;
                     }
-                    return tuple;
                 }
             }
 
@@ -113,16 +119,21 @@ public class TupleSpace
     {
         lock (_lock)
         {
-            for (var i = 0; i < _tuples.Count; i++)
+            if (_tuples.Count > 0)
             {
-                if (Matches(_tuples[i], pattern))
+                var startIndex = _random.Next(_tuples.Count);
+                for (var i = 0; i < _tuples.Count; i++)
                 {
-                    var tuple = _tuples[i];
-                    if (remove)
+                    var index = (startIndex + i) % _tuples.Count;
+                    if (Matches(_tuples[index], pattern))
                     {
-                        _tuples.RemoveAt(i);
+                        var tuple = _tuples[index];
+                        if (remove)
+                        {
+                            _tuples.RemoveAt(index);
+                        }
+                        return tuple;
                     }
-                    return tuple;
                 }
             }
             return null;
